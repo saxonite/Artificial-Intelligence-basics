@@ -1,1 +1,1 @@
-# Artificial-Intelligence-basics-
+# Artificial-Intelligence (basics)
