@@ -2,9 +2,7 @@
 Example demonstrating how to communicate with Microsoft Robotic Developer
 Studio 4 via the Lokarria http interface. 
 
-Author: Erik Billing (billing@cs.umu.se)
-
-Updated by Ola Ringdahl 204-09-11
+Author: Chaitanya Ganesh
 """
 
 MRDS_URL = 'localhost:50000'
@@ -72,7 +70,6 @@ def getPose():
 	if (response.status == 200):
 		poseData = response.read()
 		response.close()
-		print "YOLO BITCHES...!!"
 		print "\n"
 		pose =  json.loads(poseData)
 		x = pose['Pose']['Position']['X']
@@ -125,16 +122,52 @@ def getBearing():
 
 def quat_disp():
 	"""Determine the displacement of the robot from its position"""
-	global lin_speed, ang_speed
+	global lin_speed, ang_speed, L
 	pose = getPose()
 
-	lin_speed = (sqrt((0.92469644546508789-x)**2+(1.8556557893753052-y)**2+(0.077600695192813873-z)**2))/10
-	print lin_speed
-	# dot_product = sum((a*b) for a, b in zip(v1, v2))
+	# ang_speed = ((path.quat2euler(0.52194118499621678, 7.0322695637642531E-08, 3.7378104301650752E-08, 0.85298496484701458)[2])-\
+	# 			(path.quat2euler(W, X, Y, Z)[2]))/100
+	# print "Angular speed =", ang_speed
 
-	ang_speed = ((path.quat2euler(0.4858168363571167, -6.0485918496056E-09, 4.6814268017669747E-08, 0.87406432628631592)[2]-\
-				path.quat2euler(W, X, Y, Z)[2]))/10
-	print ang_speed
+	L = (1-x)**2 + (1-y)**2
+	print "Linear Displacement =", L
+
+	# Calculate the angle between the robot's pose and the world coordinate system
+	robo_head = getBearing()
+	robo_ang = atan2(robo_head['Y'], robo_head['X'])
+
+	# Calculate the angle between the goal point and the world coordinate system
+	goal_ang = atan2(1-y, 1-x)
+
+	# Calculate the angle between the goal point and the robot coordinate system
+	diff = goal_ang - robo_ang
+
+	# Calculate the goal point's y-coordinate relative to the robot's coordinate system
+	disp = sin(diff) / sqrt(L)
+
+	# disp = abs(0.991520881652832-x)
+
+	# lin_speed = (sqrt((0.92469644546508789-x)**2+(1.8556557893753052-y)**2+(0.077600695192813873-z)**2))/10
+	
+	ang_speed = diff
+	# lin_speed = ang_speed * L/(2*disp)
+	lin_speed = 0.1
+	# ang_speed = lin_speed / (L/(2*disp))
+	print "Linear speed =", lin_speed
+	response = postSpeed(ang_speed,lin_speed) 
+	# if ang_speed < abs(0.01) and L > 0.2:
+	# 	lin_speed = 0.3
+	# 	print "Linear speed =", lin_speed
+	# if L < 0.2:
+	# 	lin_speed = 0
+	# 	print "Linear speed =", lin_speed
+
+	# if (1.0390-x) and (2.3553-y) < 0.8:
+	# 	lin_speed = 0.58 
+	# else:
+	# 	lin_speed = 0
+	# 	print "The robot has reached its destination"
+
 
 def PID(y, yc):
 	"""Calculate System Input using a PID Controller
@@ -191,27 +224,25 @@ def PID(y, yc):
 #     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 if __name__ == '__main__':
-	# global lin_speed, ang_speed
+	# global lin_speed, ang_speed, L
 	
 	print 'Sending commands to MRDS server', MRDS_URL
 	while 1:
-		quat_disp()
+		print "CHEERS MOTHERFUCKER...!!"
 		try:
 			# print 'Telling the robot to go streight ahead.'
 			# response = postSpeed(0,0.1) 
 			# print 'Waiting for a while...'
 			# time.sleep(3)
 			print 'Telling the robot to go to the target.'
-			response = postSpeed(ang_speed,lin_speed)        
+			quat_disp()  
 		except UnexpectedResponse, ex:
 			print 'Unexpected response from server when sending speed commands:', ex
-
 		try:
 			laser = getLaser()
 			laserAngles = getLaserAngles()
-			print 'The rightmost laser bean has angle %.3f deg from x-axis (streight forward) and distance %.3f meters.'%(
-				laserAngles[0],laser['Echoes'][0]
-			)
+			print 'The rightmost laser bean has angle %.3f deg from x-axis (straight forward) and distance %.3f meters.'%(
+				laserAngles[0],laser['Echoes'][0])
 			print 'Beam 1: %.3f Beam 269: %.3f Beam 270: %.3f'%( laserAngles[0]*180/pi, laserAngles[269]*180/pi, laserAngles[270]*180/pi)
 		except UnexpectedResponse, ex:
 			print 'Unexpected response from server when reading laser data:', ex
@@ -230,13 +261,7 @@ if __name__ == '__main__':
 		except UnexpectedResponse, ex:
 			print 'Unexpected response from server when reading position:', ex
 
-		time.sleep(0.5)
-
-		if (0.92469644546508789-x) == (1.8556557893753052-y) == (0.077600695192813873-z) == 0:
-			print 'The robot has reached the destination'
-			response = postSpeed(0,0)
+		time.sleep(1)
+		if L < 0.5:
+			response = postSpeed(0,0) 	
 			break
-
-	
-
-	
