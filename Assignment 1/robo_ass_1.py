@@ -2,7 +2,9 @@
 Example demonstrating how to communicate with Microsoft Robotic Developer
 Studio 4 via the Lokarria http interface. 
 
-Author: Chaitanya Ganesh
+Author: Erik Billing (billing@cs.umu.se)
+
+Updated by Ola Ringdahl 204-09-11
 """
 
 MRDS_URL = 'localhost:50000'
@@ -120,6 +122,16 @@ def getBearing():
 	"""Returns the XY Orientation or Heading"""
 	return bearing(getPose()['Pose']['Orientation'])
 
+def vectorizePath(data):
+	global vecArray
+	"""
+	This function outputs the positon of the potential carrots on the path parsed from the JSON files
+
+	Output format : [[X,Y,Z]]
+	"""
+	vecArray = [[v['Pose']['Position']['X'], v['Pose']['Position']['Y'], v['Pose']['Position']['Z']] for v in data]
+	return vecArray
+
 def quat_disp():
 	"""Determine the displacement of the robot from its position"""
 	global lin_speed, ang_speed, L
@@ -129,17 +141,17 @@ def quat_disp():
 	# 			(path.quat2euler(W, X, Y, Z)[2]))/100
 	# print "Angular speed =", ang_speed
 
-	L = (1-x)**2 + (1-y)**2
+	L = (vecArray[0][0]-x)**2 + (vecArray[0][1]-y)**2
 	print "Linear Displacement =", L
 
-	# Calculate the angle between the robot's pose and the world coordinate system
+	# Angle between the RCS and WCS
 	robo_head = getBearing()
 	robo_ang = atan2(robo_head['Y'], robo_head['X'])
 
-	# Calculate the angle between the goal point and the world coordinate system
-	goal_ang = atan2(1-y, 1-x)
+	# Angle between the goal and WCS
+	goal_ang = atan2(vecArray[0][1]-y, vecArray[0][0]-x)
 
-	# Calculate the angle between the goal point and the robot coordinate system
+	# Angle between the goal and RCS
 	diff = goal_ang - robo_ang
 
 	# Calculate the goal point's y-coordinate relative to the robot's coordinate system
@@ -149,10 +161,10 @@ def quat_disp():
 
 	# lin_speed = (sqrt((0.92469644546508789-x)**2+(1.8556557893753052-y)**2+(0.077600695192813873-z)**2))/10
 	
-	ang_speed = diff
+	# ang_speed = diff
 	# lin_speed = ang_speed * L/(2*disp)
-	lin_speed = 0.1
-	# ang_speed = lin_speed / (L/(2*disp))
+	lin_speed = 1
+	ang_speed = lin_speed / (L/(2*disp))
 	print "Linear speed =", lin_speed
 	response = postSpeed(ang_speed,lin_speed) 
 	# if ang_speed < abs(0.01) and L > 0.2:
@@ -168,8 +180,8 @@ def quat_disp():
 	# 	lin_speed = 0
 	# 	print "The robot has reached its destination"
 
-
 def PID(y, yc):
+	"""This function is not used"""
 	"""Calculate System Input using a PID Controller
 
 	Arguments:
@@ -212,7 +224,6 @@ def PID(y, yc):
 
 	return u
 
-
 # def unit_vector(vector):
 #     """ Returns the unit vector of the vector"""
 #     return vector / np.linalg.norm(vector)
@@ -225,10 +236,12 @@ def PID(y, yc):
 
 if __name__ == '__main__':
 	# global lin_speed, ang_speed, L
-	
 	print 'Sending commands to MRDS server', MRDS_URL
-	while 1:
-		print "CHEERS MOTHERFUCKER...!!"
+	file_name = "Path-to-bed.json"
+	with open(file_name) as path_file:
+        	data = json.load(path_file)
+	vecArray = vectorizePath(data)
+	while len(vecArray) > 0:
 		try:
 			# print 'Telling the robot to go streight ahead.'
 			# response = postSpeed(0,0.1) 
@@ -262,6 +275,8 @@ if __name__ == '__main__':
 			print 'Unexpected response from server when reading position:', ex
 
 		time.sleep(1)
-		if L < 0.5:
-			response = postSpeed(0,0) 	
-			break
+		if L < 0.7:
+			print vecArray[0]
+			del vecArray[0]
+			# response = postSpeed(0,0) 	
+			# break
