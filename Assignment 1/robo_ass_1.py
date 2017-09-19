@@ -2,9 +2,7 @@
 Example demonstrating how to communicate with Microsoft Robotic Developer
 Studio 4 via the Lokarria http interface. 
 
-Author: Erik Billing (billing@cs.umu.se)
-
-Updated by Ola Ringdahl 204-09-11
+Author: Chaitanya
 """
 
 MRDS_URL = 'localhost:50000'
@@ -133,7 +131,7 @@ def vectorizePath(data):
 	return vecArray
 
 def quat_disp():
-	"""Determine the displacement of the robot from its position"""
+	"""Compute all the math to get the linear and the angular speed"""
 	global lin_speed, ang_speed, L
 	pose = getPose()
 
@@ -142,30 +140,35 @@ def quat_disp():
 	# print "Angular speed =", ang_speed
 
 	L = (vecArray[0][0]-x)**2 + (vecArray[0][1]-y)**2
-	print "Linear Displacement =", L
+	print "Linear Displacement from the goal =", L
 
-	# Angle between the RCS and WCS
+	"""Angle between the RCS and WCS"""
 	robo_head = getBearing()
 	robo_ang = atan2(robo_head['Y'], robo_head['X'])
 
-	# Angle between the goal and WCS
+	"""Angle between the goal and WCS"""
 	goal_ang = atan2(vecArray[0][1]-y, vecArray[0][0]-x)
 
-	# Angle between the goal and RCS
-	diff = goal_ang - robo_ang
+	"""Angle between the goal and RCS"""
+	final_ang = goal_ang - robo_ang
 
-	# Calculate the goal point's y-coordinate relative to the robot's coordinate system
-	disp = sin(diff) / sqrt(L)
+	"""Project goal on RCS"""
+	disp = sin(final_ang) / sqrt(L)
 
 	# disp = abs(0.991520881652832-x)
 
 	# lin_speed = (sqrt((0.92469644546508789-x)**2+(1.8556557893753052-y)**2+(0.077600695192813873-z)**2))/10
 	
-	# ang_speed = diff
+	# ang_speed = final_ang
 	# lin_speed = ang_speed * L/(2*disp)
+
+	"""Constant Linear Speed"""
 	lin_speed = 1
+	
+	"""Variable/Dependent Angular Speed"""
 	ang_speed = lin_speed / (L/(2*disp))
-	print "Linear speed =", lin_speed
+	
+	print "Angular speed =", ang_speed
 	response = postSpeed(ang_speed,lin_speed) 
 	# if ang_speed < abs(0.01) and L > 0.2:
 	# 	lin_speed = 0.3
