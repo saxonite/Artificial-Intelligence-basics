@@ -175,6 +175,7 @@ def quat_disp():
 	
 	print "Angular speed =", ang_speed
 	postSpeed(ang_speed,lin_speed) 
+	# time.sleep(0.1)
 	# del vecArray[0]
 
 if __name__ == '__main__':
@@ -185,16 +186,16 @@ if __name__ == '__main__':
         	data = json.load(path_file)
 	vecArray = vectorizePath(data)
 	print 'Telling the robot to go to the target.'
+	t1 = time.time()
 	while vecArray:
-		print len(vecArray)
-		# if len(vecArray) == 10:
-		# 	postSpeed(0,0) 
-		# 	break
 		try:
 			quat_disp()  
-			
-		except UnexpectedResponse, ex:
-			print 'Unexpected response from server when sending speed commands:', ex
+		except:
+			postSpeed(0,0)
+			t2 = time.time() 
+			break	
+		# except UnexpectedResponse, ex:
+		# 	print 'Unexpected response from server when sending speed commands:', ex
 		try:
 			laser = getLaser()
 			laserAngles = getLaserAngles()
@@ -217,7 +218,4 @@ if __name__ == '__main__':
 			# time.sleep(1)
 		except UnexpectedResponse, ex:
 			print 'Unexpected response from server when reading position:', ex
-		# del(vecArray[0])	
-		time.sleep(0.1)
-		
-	
+	print "Total time taken =", t2-t1
