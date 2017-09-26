@@ -129,7 +129,7 @@ def quat_disp():
 	"""Decide the goal coordinates dependent on the distance from the robot"""
 	while 1:
 		L = sqrt((vecArray[0][0]-x)**2 + (vecArray[0][1]-y)**2)
-		if L < 0.6:
+		if L < 0.4:
 			del vecArray[0]
 		else:
 			break
@@ -218,6 +218,6 @@ if __name__ == '__main__':
 		except UnexpectedResponse, ex:
 			print 'Unexpected response from server when reading position:', ex
 		# del(vecArray[0])	
-		time.sleep(0.01)
+		time.sleep(0.1)
 		
 	
