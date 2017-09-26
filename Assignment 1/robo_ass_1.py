@@ -7,10 +7,8 @@ Author: Chaitanya
 
 MRDS_URL = 'localhost:50000'
 
-import httplib, json, time, path
+import httplib, json, time
 from math import *
-# import numpy as np
-import path
 
 HEADERS = {"Content-type": "application/json", "Accept": "text/json"}
 
@@ -62,7 +60,7 @@ def getLaserAngles():
 		raise UnexpectedResponse(response)
 
 def getPose():
-	global x,y,z,W,X,Y,Z
+	global x,y,z
 	"""Reads the current position and orientation from the MRDS"""
 	mrds = httplib.HTTPConnection(MRDS_URL)
 	mrds.request('GET','/lokarria/localization')
@@ -70,15 +68,10 @@ def getPose():
 	if (response.status == 200):
 		poseData = response.read()
 		response.close()
-		print "\n"
 		pose =  json.loads(poseData)
 		x = pose['Pose']['Position']['X']
 		y = pose['Pose']['Position']['Y']
 		z = pose['Pose']['Position']['Z']
-		W = pose['Pose']['Orientation']['W']
-		X = pose['Pose']['Orientation']['X']
-		Y = pose['Pose']['Orientation']['Y']
-		Z = pose['Pose']['Orientation']['Z']
 		return pose
 	else:
 		return UnexpectedResponse(response)
@@ -131,15 +124,15 @@ def vectorizePath(data):
 	return vecArray
 
 def quat_disp():
-	"""Compute all the math to get the linear and the angular speed"""
-	global lin_speed, ang_speed, L
+	"""Compute all the to get the linear and the angular speed"""
 	pose = getPose()
-
-	# ang_speed = ((path.quat2euler(0.52194118499621678, 7.0322695637642531E-08, 3.7378104301650752E-08, 0.85298496484701458)[2])-\
-	# 			(path.quat2euler(W, X, Y, Z)[2]))/100
-	# print "Angular speed =", ang_speed
-
-	L = (vecArray[0][0]-x)**2 + (vecArray[0][1]-y)**2
+	"""Decide the goal coordinates dependent on the distance from the robot"""
+	while 1:
+		L = sqrt((vecArray[0][0]-x)**2 + (vecArray[0][1]-y)**2)
+		if L < 0.6:
+			del vecArray[0]
+		else:
+			break
 	print "Linear Displacement from the goal =", L
 
 	"""Angle between the RCS and WCS"""
@@ -149,93 +142,40 @@ def quat_disp():
 	"""Angle between the goal and WCS"""
 	goal_ang = atan2(vecArray[0][1]-y, vecArray[0][0]-x)
 
-	"""Angle between the goal and RCS"""
-	final_ang = goal_ang - robo_ang
+	goal_quad = 0
+	robo_quad = 0
+	if ((goal_ang > pi/2) & (goal_ang < pi)):
+	  goal_quad = 4
+	if ((goal_ang < -pi/2) & (goal_ang > -pi)):
+	  goal_quad = 3
+	if ((robo_ang > pi/2) & (robo_ang < pi)):
+	  robo_quad = 4
+	if ((robo_ang < -pi/2) & (robo_ang > -pi)):
+	  robo_quad = 3
 
-	"""Project goal on RCS"""
-	disp = sin(final_ang) / sqrt(L)
+	if (goal_quad == 3 & robo_quad == 4 | (robo_ang > goal_ang) & (abs(goal_ang - robo_ang) > pi)):
+	  final_ang = goal_ang - robo_ang + 2*pi
+	  
+	elif (goal_quad == 4 & robo_quad == 3 | (robo_ang < goal_ang) & (abs(goal_ang - robo_ang) > pi)):
+	  final_ang = goal_ang - robo_ang - 2*pi
+	  
+	else:
+	  final_ang = goal_ang - robo_ang
 
-	# disp = abs(0.991520881652832-x)
-
-	# lin_speed = (sqrt((0.92469644546508789-x)**2+(1.8556557893753052-y)**2+(0.077600695192813873-z)**2))/10
-	
-	# ang_speed = final_ang
-	# lin_speed = ang_speed * L/(2*disp)
+	# """Project goal on RCS"""
+	disp = sin(final_ang) / L
+	print "Projection =", disp
 
 	"""Constant Linear Speed"""
-	lin_speed = 1
+	lin_speed = 0.5
+	
 	
 	"""Variable/Dependent Angular Speed"""
-	ang_speed = lin_speed / (L/(2*disp))
+	ang_speed = 0.1 / (L**2/(2*disp))
 	
 	print "Angular speed =", ang_speed
-	response = postSpeed(ang_speed,lin_speed) 
-	# if ang_speed < abs(0.01) and L > 0.2:
-	# 	lin_speed = 0.3
-	# 	print "Linear speed =", lin_speed
-	# if L < 0.2:
-	# 	lin_speed = 0
-	# 	print "Linear speed =", lin_speed
-
-	# if (1.0390-x) and (2.3553-y) < 0.8:
-	# 	lin_speed = 0.58 
-	# else:
-	# 	lin_speed = 0
-	# 	print "The robot has reached its destination"
-
-def PID(y, yc):
-	"""This function is not used"""
-	"""Calculate System Input using a PID Controller
-
-	Arguments:
-	y  .. Measured Output of the System
-	yc .. Desired Output of the System
-	h  .. Sampling Time
-	Kp .. Controller Gain Constant
-	Ti .. Controller Integration Constant
-	Td .. Controller Derivation Constant
-	u0 .. Initial state of the integrator
-	e0 .. Initial error
-
-	Make sure this function gets called every h seconds!
-	"""
-	h=1
-	Ti=1
-	Td=1
-	Kp=1
-	u0=0
-	e0=0
-
-	# Initialization
-	ui_prev = u0
-	e_prev = e0
-
-	# Error between the desired and actual output
-	e = yc - y
-
-	# Integration Input
-	ui = ui_prev + 1/Ti * h*e
-	# Derivation Input
-	ud = 1/Td * (e - e_prev)/h
-
-	# Adjust previous values
-	e_prev = e
-	ui_prev = ui
-
-	# Calculate input for the system
-	u = Kp * (e + ui + ud)
-
-	return u
-
-# def unit_vector(vector):
-#     """ Returns the unit vector of the vector"""
-#     return vector / np.linalg.norm(vector)
-
-# def angle_between(v1, v2):
-#     """ Returns the angle in radians between vectors 'v1' and 'v2'"""
-#     v1_u = unit_vector(v1)
-#     v2_u = unit_vector(v2)
-#     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+	postSpeed(ang_speed,lin_speed) 
+	# del vecArray[0]
 
 if __name__ == '__main__':
 	# global lin_speed, ang_speed, L
@@ -244,14 +184,15 @@ if __name__ == '__main__':
 	with open(file_name) as path_file:
         	data = json.load(path_file)
 	vecArray = vectorizePath(data)
-	while len(vecArray) > 0:
+	print 'Telling the robot to go to the target.'
+	while vecArray:
+		print len(vecArray)
+		# if len(vecArray) == 10:
+		# 	postSpeed(0,0) 
+		# 	break
 		try:
-			# print 'Telling the robot to go streight ahead.'
-			# response = postSpeed(0,0.1) 
-			# print 'Waiting for a while...'
-			# time.sleep(3)
-			print 'Telling the robot to go to the target.'
 			quat_disp()  
+			
 		except UnexpectedResponse, ex:
 			print 'Unexpected response from server when sending speed commands:', ex
 		try:
@@ -276,10 +217,7 @@ if __name__ == '__main__':
 			# time.sleep(1)
 		except UnexpectedResponse, ex:
 			print 'Unexpected response from server when reading position:', ex
-
-		time.sleep(1)
-		if L < 0.7:
-			print vecArray[0]
-			del vecArray[0]
-			# response = postSpeed(0,0) 	
-			# break
+		# del(vecArray[0])	
+		time.sleep(0.01)
+		
+	
