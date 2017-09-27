@@ -126,7 +126,7 @@ def vectorizePath(data):
 def quat_disp():
 	"""Compute all the to get the linear and the angular speed"""
 	pose = getPose()
-	"""Decide the goal coordinates dependent on the distance from the robot"""
+	"""Decide the goal coordinates dependent on the look ahead distance from the robot"""
 	while 1:
 		L = sqrt((vecArray[0][0]-x)**2 + (vecArray[0][1]-y)**2)
 		if L < 0.4:
@@ -142,8 +142,10 @@ def quat_disp():
 	"""Angle between the goal and WCS"""
 	goal_ang = atan2(vecArray[0][1]-y, vecArray[0][0]-x)
 
+	"""Initialize and allocate the quadrants of the robot heading and the goal heading"""
 	goal_quad = 0
 	robo_quad = 0
+
 	if ((goal_ang > pi/2) & (goal_ang < pi)):
 	  goal_quad = 4
 	if ((goal_ang < -pi/2) & (goal_ang > -pi)):
@@ -153,12 +155,11 @@ def quat_disp():
 	if ((robo_ang < -pi/2) & (robo_ang > -pi)):
 	  robo_quad = 3
 
+	"""Calculate the final angle difference"""
 	if (goal_quad == 3 & robo_quad == 4 | (robo_ang > goal_ang) & (abs(goal_ang - robo_ang) > pi)):
 	  final_ang = goal_ang - robo_ang + 2*pi
-	  
 	elif (goal_quad == 4 & robo_quad == 3 | (robo_ang < goal_ang) & (abs(goal_ang - robo_ang) > pi)):
 	  final_ang = goal_ang - robo_ang - 2*pi
-	  
 	else:
 	  final_ang = goal_ang - robo_ang
 
@@ -168,20 +169,17 @@ def quat_disp():
 
 	"""Constant Linear Speed"""
 	lin_speed = 0.5
-	
-	
+		
 	"""Variable/Dependent Angular Speed"""
 	ang_speed = 0.1 / (L**2/(2*disp))
 	
 	print "Angular speed =", ang_speed
 	postSpeed(ang_speed,lin_speed) 
-	# time.sleep(0.1)
-	# del vecArray[0]
 
 if __name__ == '__main__':
 	# global lin_speed, ang_speed, L
 	print 'Sending commands to MRDS server', MRDS_URL
-	file_name = "Path-to-bed.json"
+	file_name = "Path-around-table-and-sofa.json"
 	with open(file_name) as path_file:
         	data = json.load(path_file)
 	vecArray = vectorizePath(data)
@@ -191,11 +189,10 @@ if __name__ == '__main__':
 		try:
 			quat_disp()  
 		except:
+			"""When the array with path elements is out of elements"""
 			postSpeed(0,0)
 			t2 = time.time() 
-			break	
-		# except UnexpectedResponse, ex:
-		# 	print 'Unexpected response from server when sending speed commands:', ex
+			break
 		try:
 			laser = getLaser()
 			laserAngles = getLaserAngles()
