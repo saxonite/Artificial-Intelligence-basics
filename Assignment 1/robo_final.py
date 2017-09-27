@@ -129,7 +129,7 @@ def quat_disp():
 	"""Decide the goal coordinates dependent on the look ahead distance from the robot"""
 	while 1:
 		L = sqrt((vecArray[0][0]-x)**2 + (vecArray[0][1]-y)**2)
-		if L < 0.4:
+		if L < 0.3:
 			del vecArray[0]
 		else:
 			break
@@ -168,10 +168,11 @@ def quat_disp():
 	print "Projection =", disp
 
 	"""Constant Linear Speed"""
-	lin_speed = 0.5
-		
+	lin_speed = 0.4
+	if abs(final_ang)>(pi/4):
+		lin_speed = 0	
 	"""Variable/Dependent Angular Speed"""
-	ang_speed = 0.1 / (L**2/(2*disp))
+	ang_speed = 0.05 / (L**2/(2*disp))
 	
 	print "Angular speed =", ang_speed
 	postSpeed(ang_speed,lin_speed) 
@@ -179,7 +180,7 @@ def quat_disp():
 if __name__ == '__main__':
 	# global lin_speed, ang_speed, L
 	print 'Sending commands to MRDS server', MRDS_URL
-	file_name = "Path-around-table-and-sofa.json"
+	file_name = "C:\Users\Chaitanya\Desktop\exam2017.json"
 	with open(file_name) as path_file:
         	data = json.load(path_file)
 	vecArray = vectorizePath(data)
